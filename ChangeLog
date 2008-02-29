@@ -1,0 +1,237 @@
+commit 6ea2de3fdec21edb4e6639de00c1dd5301792a79
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:49:58 2007 -0800
+
+    Regen META.yml.
+
+commit e27b65957c7c390f59014cbf152ab522a8ce2b1f
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:44:12 2007 -0800
+
+    Include gitignore.
+
+commit 3599e1aa5fa21ffde82cb5c3037c9eeb805c7ad4
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:43:19 2007 -0800
+
+    Ensure changelog is made for distfile.
+
+commit 8d3a0b22b2f5a6b2bdc8ca4fd508968b4810e687
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:42:20 2007 -0800
+
+    Ignore build stuff.
+
+commit 8e130ea42a98c44e9ef728ad20b38f5164d459ba
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:28:57 2007 -0800
+
+    Ignore stuff.
+
+commit 1d50ba1d5931ec7aed2a18fb16fcc10dd8a107a5
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:28:16 2007 -0800
+
+    Fix build.
+
+commit f184d5c4bed0e5a3d48a00846a31af2530385602
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:16:26 2007 -0800
+
+    Add a perl build system.
+
+commit 78ec3399ec110b2326bd28e4f49335fab9c5570e
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:16:08 2007 -0800
+
+    Include a version number.
+
+commit c1f1243e817b91c6012adc3b63d85ae704e58100
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:10:01 2007 -0800
+
+    Rename binary.
+
+commit 703712524934651308019f82df5e55657cb9e86a
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 01:09:40 2007 -0800
+
+    Moved documentation.
+
+commit 2f8bf517564386012f2115e7a13c38d49def24e6
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 00:49:15 2007 -0800
+
+    Improve signal handling.
+
+commit 4367d8feaa7b2c63d663594088bcfe7f48c6b0f5
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sun Dec 2 00:45:31 2007 -0800
+
+    Add Gentoo init scripts.
+
+commit da50d1f2cc1d9deda21d12c9ad72195f17b04ddb
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 16:13:35 2007 -0800
+
+    Clean up lockfiles and pidfiles on exit.
+
+commit 1ae0c31c178cebbff492a2e5e9a5cc3bd06c20c2
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 15:34:44 2007 -0800
+
+    Close the device nicely.
+
+commit cff50f119cb78d8c1dbb9940e9144ad5e834fb95
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 15:33:11 2007 -0800
+
+    Add a check for the lockfile.
+
+commit afd0053aec74a93c1db0cd824d93aa69f57a6513
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 15:31:32 2007 -0800
+
+    Fix if statements to be cleaner.
+
+commit 34f1d58338168c0d381a46a42d6cfd3480ea0dd0
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 15:09:13 2007 -0800
+
+    Add usage help.
+
+commit 664d98139eb77214760a1f7fa3689eb23e0c3b39
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 15:08:35 2007 -0800
+
+    Rename some config options.
+
+commit 2db458741d48df745c73ec6c1c82cd5d69562092
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 15:07:28 2007 -0800
+
+    No default log location.
+
+commit 926ea88ac599f106ab7569baee8d81dc1d1be8b8
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 15:06:09 2007 -0800
+
+    Make daemon mode optional.
+
+commit aa6186af3bb221f2f85b2a2055bbcfd431e6943a
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 15:04:50 2007 -0800
+
+    kWh rate in cents, for easier usage.
+
+commit 0e7360ab5f5a5d67ad535ecc877641baf336be44
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 15:03:42 2007 -0800
+
+    More useful parity config.
+
+commit d33658283eb6eda546be0d47337bcf1127a382c0
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 13:00:04 2007 -0800
+
+    Change units on polling to milliseconds instead of microseconds.
+
+commit ab00b10117d766725879dcccec88fe7bb5f20793
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 12:56:37 2007 -0800
+
+    Fix the variable names better.
+
+commit ed5981e274e65b13fb797e91f10d06a814b3a065
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 12:55:42 2007 -0800
+
+    Messed up the conversion.
+    
+    Revert "More useful var names."
+    
+    This reverts commit 5b3efa2884f990be70bc8aea347e1e0d64474609.
+
+commit 1d0ec70ec57a5b0e06e1baadb12448d78acbb1d2
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 12:43:43 2007 -0800
+
+    Enable taint and introduce GetOpt.
+
+commit be14247f9b8e01e2d60107e9bfe3e1740a7af959
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 12:42:19 2007 -0800
+
+    More useful opening of logging.
+
+commit 5b3efa2884f990be70bc8aea347e1e0d64474609
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 12:41:13 2007 -0800
+
+    More useful var names.
+
+commit 06e2e78c907e2f2be7ba118eef380e83593e28c6
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 12:40:19 2007 -0800
+
+    No tabs.
+
+commit 332c54490a8297c99f3a5cfd24290af2147c5e15
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 12:40:01 2007 -0800
+
+    Add modelines.
+
+commit f719802015442d0ab2ad9d09f3b8c6e49cb38822
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 00:39:35 2007 -0800
+
+    Make sure process always renames and has a pidfile. Add serial port locking file. Improve stripping of bad data on the serial line.
+
+commit 48a642579ba5d260a5502d16e12c5de719ced4f8
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 00:08:10 2007 -0800
+
+    Document the commands.
+
+commit 29ad40a48b8e101458b836ae0f11b3d91218c55a
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 00:04:04 2007 -0800
+
+    Only daemonize if not debugging.
+
+commit b5101196468af8d7edd146c3d5bda60f0335a7fb
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Sat Dec 1 00:01:03 2007 -0800
+
+    Add a pidfile.
+
+commit 3ccab0043fb605d1b63efc9d817f919ace868442
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Fri Nov 30 23:55:54 2007 -0800
+
+    Add proper daemon mode.
+
+commit 41d644a0a76f7d40a14e0d736b555ea0d80181f2
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Fri Nov 30 23:48:09 2007 -0800
+
+    Add v442 of the spec.
+
+commit b5644d256d451a80dd27105836628a89bde51e22
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Fri Nov 30 23:40:44 2007 -0800
+
+    Add documentation.
+
+commit 19f27d7df8580bdf7122ae2b34883c12e70b3dec
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Fri Nov 30 23:11:36 2007 -0800
+
+    Rewrite using the documentation.
+
+commit d89e1bed2c8374d24a0ca35de31204677d02fb3b
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Fri Nov 30 23:11:05 2007 -0800
+
+    Add the version I wrote in April 2007.

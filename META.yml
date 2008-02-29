@@ -1,0 +1,13 @@
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         WattsUp-Daemon
+version:      0.4
+version_from: wattsup-daemon
+installdirs:  site
+requires:
+    Device::SerialPort:            0
+    Time::HiRes:                   0
+    Time::TAI64:                   0
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.30

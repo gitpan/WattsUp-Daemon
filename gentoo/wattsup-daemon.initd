@@ -1,0 +1,29 @@
+#!/sbin/runscript
+# Copyright 2007, Robin H. Johnson <robbat2@gentoo.org>
+# You can use and redistribute WattsUpDaemon under the same terms as Perl itself.
+
+depend() {
+	use serial
+}
+
+bin="wattsup-daemon"
+
+start() {
+	ebegin "Starting ${bin}"
+	start-stop-daemon --start --quiet --exec /usr/sbin/${bin} -- \
+		${EXTRA} \
+		--pidfile="$PIDFILE" \
+		--logfile="$LOGFILE" \
+		--device="$DEVICE" \
+		--interval="$INTERVAL" \
+        --daemon
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping ${bin}"
+	start-stop-daemon --stop --quiet --pidfile "${PIDFILE}"
+	eend $?
+}
+
+# vim: ft=gentoo-init-d et ts=4 sw=4:

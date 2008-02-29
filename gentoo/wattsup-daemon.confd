@@ -1,0 +1,11 @@
+# Copyright 2007, Robin H. Johnson <robbat2@gentoo.org>
+# You can use and redistribute WattsUpDaemon under the same terms as Perl itself.
+
+DEVICE="/dev/ttyUSB0"
+LOGFILE="/var/log/wattsup.log"
+INTERVAL="10"
+PIDFILE="/var/run/wattsup.pid"
+# See the --help output if you need more settings
+EXTRA=""
+
+# vim: ft=gentoo-conf-d et ts=4 sw=4:

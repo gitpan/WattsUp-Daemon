@@ -1,0 +1,514 @@
+#!/usr/bin/perl -wT
+eval 'exec /usr/bin/perl -wT -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
+#
+=head1 NAME
+
+WattsUp-Daemon - Watt's Up Monitoring Daemon
+
+=head1 DESCRIPTION
+
+Watt's Up Daemon is a simple Perl daemon to poll and log data from the Watt's
+Up meters. It was written with v4.42 of the specification, and a meter claiming
+HW v5.2, FW 4.55.200706090000.
+
+Beyond the configuration data, the daemon does not do any special handling of
+the data at all. 
+
+At startup, it captures the version string, data headers, and calibration
+string, then enables all data fields, and starts external logging mode.
+
+Entries are logged using a microsecond-accurate TAI64N timestamp, taken when
+the last byte of a packet is recieved. It would be better to take the timestamp
+when the first byte is recieved, but this complicates the input handling
+routines that block for the ';' seperator.
+
+=head1 USAGE
+
+Edit the configuration in this file, and then run it at least once at with
+DEBUG set to 1, to ensure that it works for you.
+
+=head1 DEPENDANCIES
+
+You will need the following Perl modules to use this package:
+    Device::SerialPort
+    Time::TAI64
+    Time::HiRes
+They are available from CPAN, or your system package manager.
+
+=head1 SEE ALSO
+
+ http://www.wattsupmeters.com/
+ http://www.wattsupmeters.com/secure/downloads/Communications_Protocol_v442.pdf
+
+=head1 AUTHORS
+
+ Robin H. Johnson, <robbat2@gentoo.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2007, Robin H. Johnson
+
+You can use and redistribute WattsUpDaemon under the same terms as Perl itself.
+
+=cut
+
+use POSIX;
+use Device::SerialPort;
+use Time::HiRes qw ( usleep time );
+use Time::TAI64 qw ( :tai64n );
+use Carp qw(cluck croak);
+use Getopt::Long;
+use vars qw($VERSION);
+use strict;
+use warnings;
+$VERSION = '0.4';
+
+# 0 == none
+# 1 == print setup only
+# 2 == print setup and raw data
+my $DEBUG = 0;
+
+# Serial port
+my $device = "/dev/ttyUSB0";
+my $baudrate = 115200;
+my $parity = "N";
+my $databits = 8;
+my $stopbits = 1;
+my $handshake = "xoff";
+
+# Polling
+# milliseconds. 1E3 = 1 second
+my $data_polltime = 2000;    
+# seconds
+my $data_pollmax = 20;
+my $conf_polltime = 50;  
+my $conf_pollmax = 1;
+
+# List of known Watt's Up models
+my @model_array = ('Standard', 'PRO', 'ES', 'Ethernet', 'Blind Module');
+# Cost of electricity. Hardware only supports increments of 0.001, we round up
+# to the nearest value.
+my $kwh_rate = 6.15; 
+# Duty cycle threshold, watts
+my $duty_threshold = 100; 
+# Display in dollars or Euros
+my $use_euros = 0; 
+# How many seconds between datapoints
+my $data_interval = 10;
+
+# Logging
+#my $logfile = "/var/log/wattsup.log";
+my $logfile = '';
+
+# PIDfile so you can kill it nicely
+my $pidfile = "/var/run/wattsup.pid";
+
+# Run as a daemon?
+my $daemon = 0;
+
+#------------------------------------------------------------------------------
+# Nothing to configure after this point
+#------------------------------------------------------------------------------
+my $created_pidfile = 0; # Did we create the pidfile
+my $created_lockfile = 0; # Did we create the lockfile?
+my $lockfile;
+
+my $do_usage = 0;
+$do_usage = 1 unless
+GetOptions( 
+        "device=s"      => \$device,
+        "baudrate=i"    => \$baudrate,
+        "parity=s"      => \$parity,
+        "databits=i"    => \$databits,
+        "stopbits=i"    => \$stopbits,
+        "handshake=s"   => \$handshake,
+        "data-time=i"   => \$data_polltime,
+        "data-max=i"    => \$data_pollmax,
+        "conf-time=i"   => \$conf_polltime,
+        "conf-max=i"    => \$conf_pollmax,
+        "kwh-rate=f"    => \$kwh_rate,
+        "threshold=i"   => \$duty_threshold,
+        "use-euros"     => \$use_euros,
+        "interval=i"    => \$data_interval,
+        "logfile=s"     => \$logfile,
+        "pidfile=s"     => \$pidfile,
+        "debug=i"       => \$DEBUG,
+        "daemon"        => \$daemon,
+        "help"          => \$do_usage,
+        "usage"         => \$do_usage,
+        );
+
+if ($do_usage) {
+    printf "Watts Up Daemon v%s\n", $VERSION;
+    printf "\n";
+    printf "Usage: %s [options]\n",$0;
+    printf "\n";
+    printf "General Options:\n";
+    printf " --logfile=FILE     log destination [%s].\n", ($logfile ? $logfile : 'stdout');
+    printf " --pidfile=FILE     PIDfile [%s]\n", $pidfile;
+    printf " --debug=i          Debug level (0..2). Disables daemon mode.\n";
+    printf " --daemon           Daemonize\n";
+    printf " --help             This help\n";
+    printf "Serial Port Options:\n";
+    printf " --device=DEVICE    device [%s].\n", $device;
+    printf " --baudrate=BAUD    data rate [%s].\n", $baudrate;
+    printf " --databits=N       data bits (5-8) [%s].\n", $databits;
+    printf " --parity=X         parity (N,E,O) [%s].\n", $parity;
+    printf " --stopbits=N       stop bits (1,2) [%s].\n", $stopbits;
+    printf " --handshake=X      handshake type [%s].\n", $handshake;
+    printf "Timing Options:\n";
+    printf " --data-time=T      data read delay, msec [%d].\n", $data_polltime;
+    printf " --data-max=T       max time for data read, sec [%d\n", $data_pollmax;
+    printf " --conf-time=T      conf read delay, msec [%d].\n", $conf_polltime;
+    printf " --conf-max=T       max time for conf read, sec [%d].\n", $conf_pollmax;
+    printf "Watt's Up Configuration:\n";
+    printf " --kwh-rate=F       kWh pricing, cents [%02.2f].\n", $kwh_rate;
+    printf " --threshold=N      Duty cycle threshold, W [%d].\n", $duty_threshold;
+    printf " --use-euros        Use Euro symbol? [%s]\n", ($use_euros ? 'Y' : 'N');
+    printf " --interval=T       Data point interval, sec [%d].\n", $data_interval;
+    printf "\n";
+    exit 0;
+}
+
+# Handle this one ourselves
+# The rest is done by the Device::SerialPort code
+if($parity eq 'N') {
+    $parity = 'none' 
+} elsif($parity eq 'E') {
+    $parity = 'even' 
+} elsif($parity eq 'O') {
+    $parity = 'odd'  
+}
+
+# Handle shutdowns
+my $in_shutdown = 0;
+$SIG{INT} = \&run_shutdown;
+$SIG{QUIT} = \&run_shutdown;
+$SIG{TERM} = \&run_shutdown;
+
+# Open the logging location
+if(defined($logfile) and length($logfile) > 0) {
+    open LOGDEST, ">>", $logfile || croak "Failed to open logfile '$logfile'";
+} else {
+    # Trick to use stdout
+    open LOGDEST, ">&STDOUT";
+}
+
+# print without buffering
+STDOUT->autoflush(1);
+LOGDEST->autoflush(1);
+# Compute how many cycles to wait
+# The usleep code takes microseconds, so convert.
+$data_polltime *= 1E3;
+$conf_polltime *= 1E3;
+my $data_pollcycles = ($data_pollmax*1E6/$data_polltime);
+my $conf_pollcycles = ($conf_pollmax*1E6/$conf_polltime);
+# Which polling time we are using right now
+my ($_polltime, $_pollcycles) = ($conf_polltime, $conf_pollcycles);
+# Our serial device
+my $ob;
+
+# Log to the file as well, so that we get it in daemon mode
+sub failure {
+    my $s = shift;
+    $s = "no failure code provided" if !defined($s);
+    log_msg(time, "Error: ".$s."\n");
+    croak "$s";
+}
+
+sub format_msg {
+    my $c1 = shift;
+    my $c2 = shift;
+    my @args = @_;
+    my $n = scalar(@args);
+    # Use a dash if there is no subcommand
+    $c2 = '-' unless defined($c2);
+    return sprintf "#%s,%s,%d,%s;\n", $c1, $c2, $n, join(',', @args);
+}
+
+sub parse_msg {
+    my $rawinput = shift;
+    my $expected_c1 = shift;
+    my $expected_c2 = shift;
+    my $expected_n = shift;
+    $expected_c2 = '-' unless defined($expected_c2);
+    #failure("Bad input from unit! $rawinput") 
+    $rawinput =~ s/\r|\n//g;
+    chomp $rawinput;
+    #foreach(split //, $rawinput) {
+    #   if(defined($_)) {
+    #       print ord($_) . " - " . $_ . "\n";
+    #   } else {
+    #       print "BAD\n";
+    #   }
+    #}
+    #print $rawinput."\n";
+    $rawinput =~ s/#(.*);/$1/;
+    #print $rawinput."\n";
+    my @input = split /,/, $rawinput;
+    my $c1 = shift @input;
+    my $c2 = shift @input;
+    my $n = shift @input;
+    failure("Bad c1 from unit! $c1/$expected_c1 != $rawinput") 
+        if ($c1 ne $expected_c1);
+    failure("Bad c2 from unit! $c2/$expected_c2 != $rawinput") 
+        if ($c2 ne $expected_c2);
+    failure("Bad N from unit! $n/$expected_n != $rawinput") 
+        if (defined($expected_n) && $n != $expected_n);
+    return @input;
+}
+
+sub recv_msg {
+    my $loc; my $s = '';
+    my $t = undef;
+    my $count = 0;
+    while ($count++ < $_pollcycles) {
+        $loc = $ob->lookfor if ($ob);
+        failure("Lost connection") if (!defined $ob || $ob->reset_error || !defined $loc);
+        if ($loc ne "") {
+            #X#my ($match, $after, $pattern, $instead) = $ob->lastlook;
+            #X#debug(2,"before = '%s' match = '%s', after = '%s', pattern = '%s', instead = '%s'\n", $loc, $match, $after, $pattern, $instead);
+            #$loc =~ s/\cM/\r\n/;
+            # Grab the time that the message started
+            if(!defined($t)) { $t = time; }
+            # Eat whitespace
+            $loc .= ';';
+            chomp $loc;
+            $s .= $loc;
+        }
+        # Are we there yet?
+        if ($s =~ /;/) {
+            $s =~ s/(\r|\p{IsCntrl}|\n| )+//g;
+            chomp $s;
+            debug(2,"t=%s ",$t);
+            debug(2,"s=%s\n",$s);
+            return ($t, $s);
+        }
+        # Nearly there children.
+        usleep ($_polltime);
+    }
+    return (undef, undef);
+}
+
+sub send_msg {
+    my $s = shift;
+    my $i = $ob->write($s);
+    failure("write failed") unless ($i);
+    failure("write incomplete") if ($i != length($s));
+}
+
+sub log_msg {
+    my $t = shift;
+    my $s = shift;
+    printf LOGDEST "%s %s\n", unixtai64n($t), $s unless $in_shutdown == 1;
+}
+
+sub debug {
+    my $level = shift;
+    return unless $DEBUG >= $level;
+    unshift @_,"%s" unless scalar(@_) > 1;
+    printf STDERR @_;
+}
+
+sub daemonize {
+    my($pid, $sess_id, $i);
+    ## Fork and exit parent
+    if ($pid = fork) { exit 0; }
+    ## Detach ourselves from the terminal
+    croak "Cannot detach from controlling terminal"
+        unless $sess_id = POSIX::setsid();
+    ## Prevent possibility of acquiring a controling terminal
+    $SIG{'HUP'} = 'IGNORE';
+    ## Clear file creation mask
+    umask 0;
+    
+    ## Close open file descriptors
+    close(STDIN);
+    close(STDOUT);
+    close(STDERR);
+
+    ## Reopen stderr, stdout, stdin to /dev/null
+    open(STDIN,  "+>/dev/null");
+    open(STDOUT, "+>&STDIN");
+    open(STDERR, "+>&STDIN");
+}
+
+sub run_shutdown {
+    $in_shutdown = 1;
+    debug(1, "Killing lockfile %s because %d\n", $lockfile, $created_lockfile);
+    $ob->close if ($ob);
+    undef $ob; # This cleans up part of it
+    # We need to do these
+    unlink $lockfile if $created_lockfile == 1; 
+    unlink $pidfile if $created_pidfile == 1;
+    close LOGDEST;
+}
+
+sub make_pidfile {
+    my $fh;
+    unless (open($fh, ">$pidfile")) {
+        croak "couldn't create pidfile '$pidfile': $!";
+    }
+    unless ((print $fh "$$\n") && close($fh)) {
+        croak "couldn't write into pidfile '$pidfile': $!";
+    }
+}
+
+sub rename_process {
+    # Rename binary in process list to make init scripts saner
+    $0 = $_ = $0;
+}
+# We can do this right away
+rename_process();
+
+my @t = split '/', $device;
+$lockfile = '/var/lock/LCK..'.splice(@t, -1);
+debug(1,"Lockfile=%s\n",$lockfile);
+failure("$device is already locked ($lockfile)!") if -f $lockfile;
+
+unless ($ob = Device::SerialPort->new ($device, 0, $lockfile)) {
+    failure("could not open port $device");
+    # next test would die at runtime without $ob
+}
+$created_lockfile = 1;
+
+
+debug(1,"Configuring tts device\n");
+$ob->baudrate($baudrate)        || failure("bad baudrate - $baudrate");
+$ob->parity($parity)            || failure("bad parity - $parity");
+$ob->databits($databits)        || failure("bad databits - $databits");
+$ob->stopbits($stopbits)        || failure("bad stopbits - $stopbits");
+
+debug(1,"Writing settings\n");
+$ob->write_settings     || undef $ob;
+unless ($ob)            { failure("couldn't write_settings"); }
+
+debug(1,"Configuring handshake\n");
+$ob->handshake($handshake)      || failure("bad handshake - $handshake");
+
+debug(1,"Validating settings\n");
+failure("handshake problem") unless ($handshake eq $ob->handshake);
+failure("baudrate problem") unless ($baudrate == $ob->baudrate);
+failure("parity problem") unless ($parity eq $ob->parity);
+failure("databits problem") unless ($databits == $ob->databits);
+failure("stopbits problem") unless ($stopbits == $ob->stopbits);
+
+$ob->error_msg(1);      # use built-in error messages
+$ob->user_msg(1);
+
+debug(1,"Configuring input handling to search for ';'\n");
+$ob->are_match(";");
+$ob->lookclear;
+
+# Please use for all incoming data
+my ($t, $m);
+# Used during config
+my @args;
+
+debug(1, "Configuring Watt's Up\n");
+debug(1, "- Switching to internal logging during setup\n");
+#L,W,3,I,<Reserved>,<Interval>;
+@args = ('L', 'W', 'I', 0, 90);
+send_msg(format_msg(@args));
+$m = '';
+while($m !~ /#s/) {
+    ($t, $m) = recv_msg();
+}
+#my @tmp = parse_msg($m, 's', '-', 3);
+
+debug(1, "- Getting device version\n");
+#L,W,3,I,<Reserved>,<Interval>;
+@args = ('V', 'R');
+send_msg(format_msg(@args));
+($t, $m) =  recv_msg();
+my @hardware_version = parse_msg($m, 'v', '-');
+my $model = 'UNKNOWN';
+if($hardware_version[0] < scalar(@model_array)) {
+    $model = $model_array[$hardware_version[0]];
+}
+log_msg($t, $m);
+debug(1, "  - Found Watt's Up %s. %d bytes available for logging. HW v%d.%d, FW %d.%d.%d, Checksum=%d.\n",
+        $model_array[$hardware_version[0]], # Model
+        $hardware_version[1], # memory
+        $hardware_version[2], $hardware_version[3],# FW version
+        $hardware_version[4], $hardware_version[5], $hardware_version[6], # FW version
+        $hardware_version[7]); # checksum
+# TODO exit here if there is a problem
+
+debug(1, "- Getting field count\n");
+#C,R,0;
+@args = ('C', 'R');
+send_msg(format_msg(@args));
+($t,$m) = recv_msg();
+#c,-,1,<N>,...;
+my @enabled_fields = parse_msg($m, 'c', '-');
+my $count_fields = scalar(@enabled_fields);
+debug(1, " - %d data fields available.\n", $count_fields);
+
+debug(1, "- Enabling all fields\n");
+#C,W,n,<0|1>,<0|1>,...;
+@args = ('C', 'W', (1) x $count_fields);
+send_msg(format_msg(@args));
+($t, $m) =  recv_msg();
+#n,-,1,COUNT;
+my ($log_limit) = parse_msg($m, 'n', '-', 1);
+
+debug(1, "- Getting headers\n");
+#H,R,0;
+@args = ('H', 'R');
+send_msg(format_msg(@args));
+($t, $m) =  recv_msg();
+log_msg($t, $m);
+#h,-,<N>,....;
+my @headers = parse_msg($m, 'h', '-', $count_fields);
+debug(1, " - Fields: %s\n", join(',', @headers));
+
+debug(1, "- Getting calibration factors\n");
+#F,R,0;
+@args = ('F', 'R');
+send_msg(format_msg(@args));
+($t, $m) = recv_msg();
+log_msg($t, $m);
+#f,-,<N>,....;
+my @calibration = parse_msg($m, 'f', '-', undef);
+
+# Round up to nearest 1/10th of a cent
+$kwh_rate = ceil($kwh_rate*10)/10;
+debug(1, "- Setting kWh rate to %02.4f cents (%s)\n", $kwh_rate, ($use_euros ? 'EUR' : '$'));
+debug(1, "- Setting duty cycle threshold to %dW\n", $duty_threshold);
+#U,W,3,3,<Rate>,<Duty>,<Euro>;
+@args = ('U', 'W', floor($kwh_rate*10), $duty_threshold, $use_euros);
+send_msg(format_msg(@args));
+
+debug(1, "- Switching to external logging\n");
+#L,W,3,I,<Reserved>,<Interval>;
+@args = ('L', 'W', 'E', 0, $data_interval);
+send_msg(format_msg(@args));
+
+
+debug(1, "Entering loop\n");
+# Set up the new wait time
+($_polltime, $_pollcycles) = ($data_polltime, $data_pollcycles);
+
+# GoGo Gadget Daemon!
+daemonize() if $DEBUG == 0 and $daemon;
+# Must do this after the daemonize
+make_pidfile();
+$created_pidfile = 1;
+
+while (1) {
+    ($t, $m) = recv_msg();
+    log_msg($t, $m);
+}
+
+# We fucked it up
+sleep 1;
+failure("Exit condition triggered");
+
+END {
+    run_shutdown();
+}
+
+# -*- cperl -*-
+# vim:ft=perl et ts=4 sw=4 ai:
